@@ -1,0 +1,11 @@
+#cmake
+bin
+build
+lib
+.vs
+
+#binary content
+assets
+
+#imgui
+imgui.ini
