@@ -28,6 +28,20 @@ static struct
 	SScene Scene;
 } G;
 
+struct SkyDome
+{
+	VertexBufferPtr VertexBuffer;
+	IndexBufferPtr IndexBuffer;
+
+	TexturePtr SkyTexture;
+	ShaderResourceViewPtr Srv;
+
+	void Load(const char* path)
+	{
+		
+	}
+} GSkyDome;
+
 void ResizeScreen(uint32_t width, uint32_t height)
 {
 	width = Max(width, 1u);
@@ -78,12 +92,14 @@ void DrawUI()
 
 	if (bShowTextureWindow)
 	{
-		if (ImGui::Begin("Textures"))
+		if (ImGui::Begin("Textures", &bShowTextureWindow))
 		{
 			uint32_t idx = 0;
+			float windowWidth = ImGui::GetContentRegionAvail().x;
+
 			for (const STexture& tex : G.Scene.Textures)
-			{
-				ImGui::Image((ImTextureID)tex.Srv.Get(), ImVec2(256.f, 256.f));
+			{				
+				ImGui::Image((ImTextureID)tex.Srv.Get(), ImVec2(windowWidth * 0.25f, windowWidth * 0.25f));
 				idx++;
 
 				if (idx % 4 != 0)
