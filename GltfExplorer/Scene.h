@@ -31,25 +31,22 @@ constexpr uint32_t KMeshVertexBufferCount = (uint32_t)EMeshVertexBuffers::VB_COU
 
 struct SMesh
 {
-    tpr::VertexBuffer_t VertexBuffers[KMeshVertexBufferCount] = {};
+    tpr::VertexBufferPtr VertexBuffers[KMeshVertexBufferCount] = {};
+    tpr::VertexBuffer_t VertexBuffersRaw[KMeshVertexBufferCount] = {}; // For binding as array
     uint32_t BufferStrides[KMeshVertexBufferCount] = {};
     uint32_t BufferOffsets[KMeshVertexBufferCount] = {};
 
-    tpr::IndexBuffer_t IndexBuffer = {};
+    tpr::IndexBufferPtr IndexBuffer = {};
     tpr::RenderFormat IndexFormat = tpr::RenderFormat::UNKNOWN;
     uint32_t IndexCount = 0u;
     uint32_t IndexOffset = 0u;
 
     SceneMaterial_t Material = SceneMaterial_t::INVALID;
-
-    void Release();
 };
 
 struct SModel
 {
     std::vector<SMesh> Meshes;
-
-    void Release();
 };
 
 struct SMaterialConstants
@@ -93,25 +90,19 @@ struct SMaterial
     tpr::ShaderResourceView_t Srvs[kMaterialTextureCount] = {};
 
     SMaterialConstants Constants = {};
-    tpr::ConstantBuffer_t ConstantBuffer = tpr::ConstantBuffer_t::INVALID;
-
-    void Release();
+    tpr::ConstantBufferPtr ConstantBuffer = tpr::ConstantBuffer_t::INVALID;
 };
 
 struct STexture
 {
-    tpr::Texture_t Texture = tpr::Texture_t::INVALID;
-    tpr::ShaderResourceView_t Srv = tpr::ShaderResourceView_t::INVALID;
-
-    void Release();
+    tpr::TexturePtr Texture = tpr::Texture_t::INVALID;
+    tpr::ShaderResourceViewPtr Srv = tpr::ShaderResourceView_t::INVALID;
 };
 
 struct SNode
 {
     matrix Transform = {};
     SceneModel_t Model = SceneModel_t::INVALID;
-
-    void Release();
 };
 
 struct SScene
@@ -120,8 +111,6 @@ struct SScene
     std::vector<SModel> Models;
     std::vector<SMaterial> Materials;
     std::vector<STexture> Textures;
-
-    void Release();
 };
 
 SScene LoadSceneFromGlb(const char* glbPath);

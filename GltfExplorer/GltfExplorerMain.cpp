@@ -19,8 +19,11 @@ static struct
 	uint32_t ScreenHeight = 0;
 	FlyCamera Camera;
 
-	Texture_t DepthTexture = Texture_t::INVALID;
-	DepthStencilView_t Dsv = DepthStencilView_t::INVALID;
+	RenderPtr<Texture_t> DepthTexture;
+	RenderPtr<DepthStencilView_t> Dsv;
+
+	//Texture_t DepthTexture;
+	//DepthStencilView_t Dsv;
 
 	SScene Scene;
 } G;
@@ -37,9 +40,6 @@ void ResizeScreen(uint32_t width, uint32_t height)
 
 	G.ScreenWidth = width;
 	G.ScreenHeight = height;
-
-	RenderRelease(G.DepthTexture);
-	RenderRelease(G.Dsv);
 
 	G.Camera.Resize(G.ScreenWidth, G.ScreenHeight);
 
@@ -67,7 +67,7 @@ void DrawUI()
 	if (ImGui::Begin("GltfExplorer"))
 	{
 		ImGui::Checkbox("Show Demo Window", &bShowDemoWindow);
-		ImGui::Checkbox("Show Demo Window", &bShowTextureWindow);
+		ImGui::Checkbox("Show Textures", &bShowTextureWindow);
 	}
 	ImGui::End();
 
@@ -83,7 +83,7 @@ void DrawUI()
 			uint32_t idx = 0;
 			for (const STexture& tex : G.Scene.Textures)
 			{
-				ImGui::Image((ImTextureID)tex.Srv, ImVec2(256.f, 256.f));
+				ImGui::Image((ImTextureID)tex.Srv.Get(), ImVec2(256.f, 256.f));
 				idx++;
 
 				if (idx % 4 != 0)
@@ -113,7 +113,7 @@ int main()
 
 	RenderInitParams params;
 #ifdef _DEBUG
-	params.DebugEnabled = true;
+	params.DebugEnabled = false;
 #else
 	params.DebugEnabled = false;
 #endif
@@ -151,6 +151,8 @@ int main()
 	ImGui_ImplRender_Init(RenderView::BackBufferFormat);
 
 	G.Scene = LoadSceneFromGlb("Assets/SunTemple.glb");
+
+	//G.Scene.Release();
 
 	GraphicsPipelineTargetDesc sceneTargetDesc({ RenderView::BackBufferFormat }, { BlendMode::None() });
 
@@ -246,7 +248,7 @@ int main()
 
 			DynamicBuffer_t viewCB = CreateDynamicConstantBuffer(&viewUniforms, sizeof(viewUniforms));
 
-			if (Render_BindlessMode())
+			if (Render_IsBindless())
 			{
 				cl->SetGraphicsRootCBV(RS_VIEW_BUF, viewCB);
 
@@ -265,7 +267,7 @@ int main()
 					continue;
 
 				DynamicBuffer_t meshBuf = CreateDynamicConstantBuffer(&node.Transform, sizeof(node.Transform));
-				if (Render_BindlessMode())
+				if (Render_IsBindless())
 				{
 					cl->SetGraphicsRootCBV(RS_MESH_BUF, meshBuf);
 				}
@@ -284,7 +286,7 @@ int main()
 
 					cl->SetPipelineState(GetPSOForMaterial(material, sceneTargetDesc, DepthFormat));
 
-					if (Render_BindlessMode())
+					if (Render_IsBindless())
 					{
 						cl->SetGraphicsRootCBV(RS_MAT_BUF, material.ConstantBuffer);
 					}
@@ -296,7 +298,7 @@ int main()
 					}
 
 					cl->SetIndexBuffer(mesh.IndexBuffer, mesh.IndexFormat, mesh.IndexOffset);
-					cl->SetVertexBuffers(0, ARRAYSIZE(mesh.VertexBuffers), mesh.VertexBuffers, mesh.BufferStrides, mesh.BufferOffsets);
+					cl->SetVertexBuffers(0, ARRAYSIZE(mesh.VertexBuffersRaw), mesh.VertexBuffersRaw, mesh.BufferStrides, mesh.BufferOffsets);
 
 					cl->DrawIndexedInstanced(mesh.IndexCount, 1, 0, 0, 0);
 

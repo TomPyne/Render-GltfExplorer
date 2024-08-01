@@ -3,10 +3,15 @@
 #include "Logging.h"
 
 #include <Render/Textures.h>
+#include <thread>
 
-#pragma optimize("", on)
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
+
+void LoadTextureThread()
+{
+
+}
 
 tpr::Texture_t LoadTextureFromBinary(const void* pData, size_t size)
 {

@@ -163,7 +163,15 @@ float4 main(PS_INPUT input, bool frontFace : SV_IsFrontFace) : SV_Target
         baseColor *= MTL_TEX(BaseColorTexture, BaseColorTextureIndex).Sample(TrilinearSampler, input.texcoord[BaseColorUvIndex]);
     }
 
-    float3 vertexNormal = normalize(frontFace ? input.normal : -input.normal);
+#if MAT_TWOSIDED
+    if(baseColor.a < MaskAlphaCutoff)
+    {
+        discard;
+    }
+#endif
+
+    // Winding order is reversed so we have to flip frontFace
+    float3 vertexNormal = normalize(!frontFace ? input.normal : -input.normal);
 
     float3 normal = vertexNormal;
     if(NormalTextureIndex)
@@ -208,26 +216,28 @@ float4 main(PS_INPUT input, bool frontFace : SV_IsFrontFace) : SV_Target
     const float ndh = saturate(dot(n, h));
 
     static const float3 black = 0.0f;
-    static const float3 f0Dielectric = 0.04f;
+    static const float3 f0Dielectric = 0.04f;    
 
     const float3 f0 = lerp(f0Dielectric, baseColor.rgb, metallic);
     const float3 f90 = float3(1.0f, 1.0f, 1.0f);
 
-    const float3 adjustedRadiance = LightRadiance * max(ndl, 0);
+    const float3 adjustedRadiance = LightRadiance * max(ndl, 0.1);
 
     float3 spec = 0;
     float3 diff = 0;
 
-    diff += LightAmbient * baseColor.rgb;
+    //diff += LightAmbient * baseColor.rgb;
 
     if(ndl > 0 || ndv > 0)
     {   
         float alphaRoughness = saturate(roughness);
         alphaRoughness = alphaRoughness * alphaRoughness;
 
-        diff += LightRadiance * ndl * BRDF_lambertian(f0, f90, baseColor.rgb, 1.0f, vdh );
-        spec += LightRadiance * ndl * BRDF_specularGGX(f0, f90, alphaRoughness, 1.0f, vdh, ndl, ndv, ndh);      
+        diff += adjustedRadiance * BRDF_lambertian(f0, f90, baseColor.rgb, 1.0f, vdh );
+        spec += adjustedRadiance * BRDF_specularGGX(f0, f90, alphaRoughness, 1.0f, vdh, ndl, ndv, ndh);      
     }
+
+    //return float4(spec, 1);
 
     return float4(Tonemap(diff + spec + emissive), baseColor.a); 
 

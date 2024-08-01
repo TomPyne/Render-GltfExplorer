@@ -4,76 +4,12 @@
 #include "GltfLoader.h"
 #include "TextureLoader.h"
 
-#include <Render/Buffers.h>
+#include <Render/RenderDefines.h>
+
+#include <ppl.h>
 #include <stack>
 
-void SMesh::Release()
-{
-    for (uint32_t i = 0; i < KMeshVertexBufferCount; i++)
-    {
-        tpr::RenderRelease(VertexBuffers[i]);
-        VertexBuffers[i] = tpr::VertexBuffer_t::INVALID;
-    }
-
-    tpr::RenderRelease(IndexBuffer);
-    IndexBuffer = tpr::IndexBuffer_t::INVALID;
-}
-
-void SModel::Release()
-{
-    for (SMesh& mesh : Meshes)
-    {
-        mesh.Release();
-    }
-
-    Meshes.clear();
-}
-
-void SMaterial::Release()
-{
-    tpr::RenderRelease(ConstantBuffer);
-    ConstantBuffer = tpr::ConstantBuffer_t::INVALID;
-}
-
-void STexture::Release()
-{
-    tpr::RenderRelease(Texture);
-    tpr::RenderRelease(Srv);
-
-    Texture = tpr::Texture_t::INVALID;
-    Srv = tpr::ShaderResourceView_t::INVALID;
-}
-
-void SNode::Release()
-{
-}
-
-void SScene::Release()
-{
-    for (SNode& node : Nodes)
-    {
-        node.Release();
-    }
-    Nodes.clear();
-
-    for (SModel& model : Models)
-    {
-        model.Release();
-    }
-    Models.clear();
-
-    for (SMaterial& material : Materials)
-    {
-        material.Release();
-    }
-    Materials.clear();
-
-    for (STexture& texture : Textures)
-    {
-        texture.Release();
-    }
-    Textures.clear();
-}
+#define PARALLEL_LOAD (RENDER_THREAD_SAFE)
 
 struct SGltfProcessor
 {
@@ -84,7 +20,7 @@ struct SGltfProcessor
 
     SScene Process()
     {
-        LoadedScene.Release();
+        LoadedScene = {};
 
         LoadedScene.Materials.resize(1);
         LoadedScene.Models.resize(1);
@@ -110,9 +46,10 @@ struct SGltfProcessor
 private:
 
     template<typename T>
-    tpr::ShaderResourceView_t GetSrvForTexInfo(const std::optional<T>& texInfo)
+    tpr::ShaderResourceViewPtr& GetSrvForTexInfo(const std::optional<T>& texInfo)
     {
-        return texInfo.has_value() && (LoadedScene.Textures.size() > texInfo->index) ? LoadedScene.Textures[GltfModel.textures[texInfo->index].source].Srv : tpr::ShaderResourceView_t::INVALID;
+        static tpr::ShaderResourceViewPtr nullSrv = {};
+        return texInfo.has_value() && (LoadedScene.Textures.size() > texInfo->index) ? LoadedScene.Textures[GltfModel.textures[texInfo->index].source].Srv : nullSrv;
     }
 
     template<typename T>
@@ -126,7 +63,12 @@ private:
         LoadedScene.Textures.resize(GltfModel.images.size());
 
         // Gltf loads images as texture + sampler combos, im assuming trilinear always to simplify it
+
+#if PARALLEL_LOAD
+        Concurrency::parallel_for((size_t)0u, GltfModel.images.size(), [&](size_t i)
+#else
         for (uint32_t i = 0; i < GltfModel.images.size(); i++)
+#endif
         {
             const GltfImage& gltfImage = GltfModel.images[i];
             
@@ -135,6 +77,9 @@ private:
             LoadedScene.Textures[i].Texture = LoadTextureFromBinary(GltfModel.data.get() + gltfBufView.byteOffset, gltfBufView.byteLength);
             LoadedScene.Textures[i].Srv = tpr::CreateTextureSRV(LoadedScene.Textures[i].Texture, tpr::RenderFormat::R8G8B8A8_UNORM, tpr::TextureDimension::TEX2D, 1u, 1u);
         }
+#if PARALLEL_LOAD
+            );
+#endif
     }
 
     void ProcessMaterials()
@@ -243,6 +188,7 @@ private:
                             gltfAccessor.count * stride
                         );
 
+                        mesh.VertexBuffersRaw[(uint32_t)targetBuffer] = mesh.VertexBuffers[(uint32_t)targetBuffer].Get();
                         mesh.BufferStrides[(uint32_t)targetBuffer] = static_cast<UINT>(stride);
                         mesh.BufferOffsets[(uint32_t)targetBuffer] = 0;
                     }
@@ -311,10 +257,11 @@ SScene LoadSceneFromGlb(const char* glbPath)
 
 tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const tpr::GraphicsPipelineTargetDesc& targetDesc, tpr::RenderFormat depthFormat)
 {
-    static tpr::GraphicsPipelineState_t Permutations[(uint32_t)EMaterialDomain::MD_COUNT][2] = {};
+    static tpr::GraphicsPipelineStatePtr Permutations[(uint32_t)EMaterialDomain::MD_COUNT][2] = {};
 
-    tpr::GraphicsPipelineState_t& perm = Permutations[(uint32_t)material.Domain][(uint32_t)material.IsDoubleSided];
-    if (perm != tpr::GraphicsPipelineState_t::INVALID)
+    tpr::GraphicsPipelineStatePtr& perm = Permutations[(uint32_t)material.Domain][(uint32_t)material.IsDoubleSided];
+
+    if (perm)
     {
         return perm;
     }
@@ -352,7 +299,7 @@ tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const 
 
     perm = tpr::CreateGraphicsPipelineState(psoDesc, meshLayout, ARRAYSIZE(meshLayout));
 
-    if (perm == tpr::GraphicsPipelineState_t::INVALID)
+    if (!perm)
     {
         LOGERROR("Failed to create a material PSO");
     }

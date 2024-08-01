@@ -51,7 +51,7 @@ static void ImGui_ImplRender_SetupRenderState(ImDrawData* draw_data, tpr::Comman
     cl->SetVertexBuffers(0, 1, &vb, &stride, &offset);
     cl->SetIndexBuffer(ib, sizeof(ImDrawIdx) == 2 ? RenderFormat::R16_UINT : RenderFormat::R32_UINT, 0);
 
-    if (Render_BindlessMode())
+    if (Render_IsBindless())
     {
         cl->SetGraphicsRootCBV(0, cb);
     }
@@ -127,7 +127,7 @@ void ImGui_ImplRender_RenderDrawData(ImRenderFrameData* frame_data, ImDrawData* 
 
     GraphicsPipelineState_t prevPSO = cl->GetPreviousPSO();
 
-    if (Render_BindlessMode())
+    if (Render_IsBindless())
     {
         cl->SetGraphicsRootDescriptorTable(2u);
     }
@@ -176,7 +176,7 @@ void ImGui_ImplRender_RenderDrawData(ImRenderFrameData* frame_data, ImDrawData* 
                 if (srv != ShaderResourceView_t::INVALID)
                     cl->SetPipelineState(g_PSO);
 
-                if (Render_BindlessMode())
+                if (Render_IsBindless())
                 {
                     cl->SetGraphicsRootValue(1, GetDescriptorIndex(srv));
                 }
