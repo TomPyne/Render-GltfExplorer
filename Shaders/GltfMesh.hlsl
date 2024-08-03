@@ -1,9 +1,4 @@
-cbuffer viewData : register(b0) 
-{
-    row_major float4x4 ViewProjectionMatrix; 
-    float3 CameraPosition;
-    float pad0;
-};
+#include "Shaders/ViewData.h"
 
 struct PS_INPUT
 {
@@ -88,8 +83,6 @@ Texture2D<float4> EmissiveTexture : register(t3);
 #define MTL_TEX(BoundTex, BindlessIndex) BoundTex
 
 #endif // _BINDLESS
-
-SamplerState TrilinearSampler : register(s0);
 
 static const float M_PI = 3.14159265359;
 

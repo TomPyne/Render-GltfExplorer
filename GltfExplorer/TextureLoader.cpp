@@ -9,33 +9,71 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+struct FileHandle
+{
+    explicit FileHandle(const char* pFileName)
+    {
+        if (!(fopen_s(&pFile, pFileName, "rb") == 0))
+        {
+            pFile = nullptr;
+        }
+    }
+
+    size_t GetSize() const
+    {
+        if (!pFile)
+        {
+            return 0;
+        }
+
+        if (fseek(pFile, 0, SEEK_END) < 0)
+        {
+            return 0;
+        }
+
+        const size_t size = ftell(pFile);
+
+        if (fseek(pFile, 0, SEEK_SET) < 0)
+        {
+            return 0;
+        }
+
+        return size;
+    }
+
+    void ReadIntoMem(void* pMem, size_t memSize)
+    {
+        fread_s(pMem, memSize, sizeof(unsigned char), memSize, pFile);
+    }
+
+    ~FileHandle()
+    {
+        fclose(pFile);
+    }
+
+    FILE* pFile = nullptr;
+
+    operator bool() const { return pFile != nullptr; }
+};
+
 std::unique_ptr<stbi_uc[]> LoadBinaryFile(const char* const pFileName, size_t& size)
 {
-    FILE* pFile = nullptr;
-    if (!(fopen_s(&pFile, pFileName, "rb") == 0))
-        return nullptr;
-
-    if (fseek(pFile, 0, SEEK_END) < 0)
+    FileHandle file = FileHandle(pFileName);
+    if (!file)
     {
-        fclose(pFile);
-        return nullptr;
+        return {};
     }
 
-    size = ftell(pFile);
+    size = file.GetSize();
 
-    if (size == 0)
+    if (size <= 0)
     {
-        fclose(pFile);
-        return nullptr;
-    }
-
-    rewind(pFile);
+        return {};
+    }       
 
     std::unique_ptr<stbi_uc[]> pRet = std::make_unique<stbi_uc[]>(size);
 
-    memcpy(pRet.get(), pFile, size);
-
-    fclose(pFile);
+    file.ReadIntoMem(pRet.get(), size);
 
     return pRet;
 }
