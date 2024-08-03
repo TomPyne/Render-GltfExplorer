@@ -31,7 +31,7 @@ PS_INPUT main(VS_INPUT input)
     PS_INPUT output;
 
     output.worldPos = mul(float4(input.pos, 1.f), ModelMatrix).xyz;
-    output.pos = mul(float4(output.worldPos, 1.0f), ViewProjectionMatrix);
+    output.pos = mul(float4(output.worldPos, 1.0f), View.ViewProjectionMatrix);
     output.normal = mul(float4(input.normal, 0.0f), ModelMatrix).xyz;
     output.tangent = mul(float4(input.tangent.xyz, 0.0f), ModelMatrix).xyz;
     output.bitangent = cross(output.normal, output.tangent) * input.tangent.w;
@@ -194,13 +194,11 @@ float4 main(PS_INPUT input, bool frontFace : SV_IsFrontFace) : SV_Target
         emissive *= MTL_TEX(EmissiveTexture, EmissiveTextureIndex).Sample(TrilinearSampler, input.texcoord[EmissiveUvIndex]).rgb;
     }
 
-    const float3 LightDir = normalize(float3(0.5f, -1.0f, 0.5f));
     const float3 LightAmbient = float3(0.3f, 0.3f, 0.3f);
-    const float3 LightRadiance = float3(3.0f, 3.0f, 4.0f);
     
     const float3 n = normalize(normal);
-    const float3 v = normalize(input.worldPos - CameraPosition);
-    const float3 l = LightDir;
+    const float3 v = normalize(input.worldPos - View.CameraPosition);
+    const float3 l = -View.SunDirection.xzy;
     const float3 h = normalize(l + v);
 
     const float vdh = saturate(dot(v, h));
@@ -214,12 +212,12 @@ float4 main(PS_INPUT input, bool frontFace : SV_IsFrontFace) : SV_Target
     const float3 f0 = lerp(f0Dielectric, baseColor.rgb, metallic);
     const float3 f90 = float3(1.0f, 1.0f, 1.0f);
 
-    const float3 adjustedRadiance = LightRadiance * max(ndl, 0.1);
+    const float3 adjustedRadiance = View.SunRadiance * max(ndl, 0.000);
 
     float3 spec = 0;
     float3 diff = 0;
 
-    //diff += LightAmbient * baseColor.rgb;
+    diff += LightAmbient * baseColor.rgb;
 
     if(ndl > 0 || ndv > 0)
     {   

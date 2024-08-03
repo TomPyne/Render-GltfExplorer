@@ -26,6 +26,24 @@ static struct
 	SScene Scene;
 } G;
 
+struct DirectionalLight
+{
+	float Theta = 0.2f;
+	float Phi = 0.0f;
+
+	float3 Radiance = float3{ 34.0f, 22.75f, 8.75f };
+
+	float3 ToCartesian() const
+	{
+		const float sinTheta = sinf(Theta);
+		return float3{
+			sinTheta * cosf(Phi),
+			sinTheta * sinf(Phi),
+			cosf(Theta)
+		};
+	}
+} GSun;
+
 struct SkyDome
 {
 	VertexBufferPtr VertexBuffer;
@@ -210,6 +228,13 @@ void DrawUI()
 		}
 		ImGui::End();
 	}
+
+	// Sun params
+	{
+		ImGui::SliderAngle("Sun Theta", &GSun.Theta, 0.0f, 180.0f);
+		ImGui::SliderAngle("Sun Phi", &GSun.Phi, -180.0f, 180.0f);
+		ImGui::InputFloat3("Sun Radiance", GSun.Radiance.v);
+	}
 }
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -347,38 +372,44 @@ int main()
 			cl->SetRenderTargets(&backBufferRtv, 1, G.Dsv);
 		}
 
+		cl->SetRootSignature();
+
+		struct ViewUniforms
+		{
+			matrix ViewProjectionMat;
+			float3 CameraPos;
+			float __pad0;
+			float3 SunDirection;
+			float __pad1;
+			float3 SunRadiance;
+			float __pad2;
+		} viewUniforms;
+
+		viewUniforms.ViewProjectionMat = G.Camera.GetView() * G.Camera.GetProjection();
+		viewUniforms.CameraPos = G.Camera.GetPosition();
+		viewUniforms.SunDirection = GSun.ToCartesian();
+		viewUniforms.SunRadiance = GSun.Radiance;
+
+		DynamicBuffer_t viewCB = CreateDynamicConstantBuffer(&viewUniforms, sizeof(viewUniforms));
+
+		if (Render_IsBindless())
+		{
+			cl->SetGraphicsRootCBV(RS_VIEW_BUF, viewCB);
+
+			cl->SetGraphicsRootDescriptorTable(RS_SRV_TABLE);
+		}
+		else
+		{
+			cl->BindVertexCBVs(0, 1, &viewCB);
+			cl->BindPixelCBVs(0, 1, &viewCB);
+		}
+
 		// Draw scene
 		{
-			struct ViewUniforms
-			{
-				matrix ViewProjectionMat;
-				float3 CameraPos;
-				float __pad;
-			} viewUniforms;
-
-			viewUniforms.ViewProjectionMat = G.Camera.GetView() * G.Camera.GetProjection();
-			viewUniforms.CameraPos = G.Camera.GetPosition();
-
-			cl->SetRootSignature();
-
 			Viewport vp(G.ScreenWidth, G.ScreenHeight);
 
 			cl->SetViewports(&vp, 1);
 			cl->SetDefaultScissor();
-
-			DynamicBuffer_t viewCB = CreateDynamicConstantBuffer(&viewUniforms, sizeof(viewUniforms));
-
-			if (Render_IsBindless())
-			{
-				cl->SetGraphicsRootCBV(RS_VIEW_BUF, viewCB);
-
-				cl->SetGraphicsRootDescriptorTable(RS_SRV_TABLE);
-			}
-			else
-			{
-				cl->BindVertexCBVs(0, 1, &viewCB);
-				cl->BindPixelCBVs(0, 1, &viewCB);
-			}
 
 			int count = 0;
 			for (const SNode& node : G.Scene.Nodes)
@@ -432,6 +463,7 @@ int main()
 			vp.maxDepth = vp.minDepth = 1.0f;
 
 			cl->SetViewports(&vp, 1);
+			cl->SetDefaultScissor();
 
 			cl->SetPipelineState(GSkyDome.Pso);
 

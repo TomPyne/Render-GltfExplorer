@@ -18,8 +18,8 @@ PS_INPUT main(VS_INPUT input)
 {
     PS_INPUT output;
 
-    float3 worldPos = input.pos + CameraPosition;
-    output.pos = mul(float4(worldPos, 1.0f), ViewProjectionMatrix);
+    float3 worldPos = input.pos + View.CameraPosition;
+    output.pos = mul(float4(worldPos, 1.0f), View.ViewProjectionMatrix);
     
     output.uvw = normalize(input.pos);
     output.uv = float2(atan2(output.uvw.z, output.uvw.x), asin(-output.uvw.y)) * float2(0.1591, 0.3183) + float2(0.5, 0.5);
