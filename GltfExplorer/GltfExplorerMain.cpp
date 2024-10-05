@@ -7,6 +7,7 @@
 #include "imgui_impl_render.h"
 
 #include "Camera/FlyCamera.h"
+#include "DebugDraw/DebugDraw.h"
 #include "TextureLoader.h"
 #include "Scene.h"
 
@@ -142,10 +143,10 @@ struct SkyDome
 		VertexShader_t vertexShader = CreateVertexShader("Shaders/SkyDome.hlsl");
 		PixelShader_t pixelShader = CreatePixelShader("Shaders/SkyDome.hlsl");
 
-		GraphicsPipelineTargetDesc sceneTargetDesc({ RenderView::BackBufferFormat }, { BlendMode::None() });
+		GraphicsPipelineTargetDesc sceneTargetDesc({ RenderView::BackBufferFormat }, { BlendMode::None() }, DepthFormat);
 		tpr::GraphicsPipelineStateDesc psoDesc = {};
 		psoDesc.RasterizerDesc(tpr::PrimitiveTopologyType::TRIANGLE, FillMode::SOLID, CullMode::FRONT)
-			.DepthDesc(true, ComparisionFunc::LESS_EQUAL, DepthFormat)
+			.DepthDesc(true, ComparisionFunc::LESS_EQUAL)
 			.TargetBlendDesc(sceneTargetDesc)
 			.VertexShader(vertexShader)
 			.PixelShader(pixelShader);
@@ -299,13 +300,15 @@ int main()
 
 	//G.Scene.Release();
 
-	GraphicsPipelineTargetDesc sceneTargetDesc({ RenderView::BackBufferFormat }, { BlendMode::None() });
+	GraphicsPipelineTargetDesc sceneTargetDesc({ RenderView::BackBufferFormat }, { BlendMode::None() }, DepthFormat);
 
 	// Precache PSOs
 	for (const SMaterial& mat : G.Scene.Materials)
 	{
-		GetPSOForMaterial(mat, sceneTargetDesc, DepthFormat);
+		GetPSOForMaterial(mat, sceneTargetDesc);
 	}
+
+	DebugDrawInit(sceneTargetDesc);
 
 	Clock clock{};
 
@@ -435,7 +438,7 @@ int main()
 
 					const SMaterial& material = G.Scene.Materials[(uint32_t)mesh.Material];
 
-					cl->SetPipelineState(GetPSOForMaterial(material, sceneTargetDesc, DepthFormat));
+					cl->SetPipelineState(GetPSOForMaterial(material, sceneTargetDesc));
 
 					if (Render_IsBindless())
 					{
@@ -456,6 +459,19 @@ int main()
 					count++;
 				}
 			}
+		}
+
+		{
+			
+			DebugDrawContext_s debugCtx;
+
+			// Debug draw
+			for (float r = 0.0f; r < 2.0f * K_PI; r += 0.1f)
+			{
+				debugCtx.DrawLine(float3(0.0f), float3(cosf(r), 0.0f, sinf(r)), 0xffffffff);
+			}
+
+			debugCtx.Render(cl);
 		}
 
 		{
@@ -517,6 +533,8 @@ int main()
 			ImGui::RenderPlatformWindowsDefault();
 		}
 	}
+
+	DebugDrawShutdown();
 
 	ImGui_ImplRender_Shutdown();
 	ImGui_ImplWin32_Shutdown();

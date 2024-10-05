@@ -257,7 +257,7 @@ bool ImGui_ImplRender_CreateDeviceObjects()
         GraphicsPipelineStateDesc pipeDesc = {};
         pipeDesc.RasterizerDesc(PrimitiveTopologyType::TRIANGLE, FillMode::SOLID, CullMode::NONE)
                 .DepthDesc(false)
-                .TargetBlendDesc({ g_TargetFormat }, { BlendMode::Default() })
+                .TargetBlendDesc({ g_TargetFormat }, { BlendMode::Default() }, RenderFormat::UNKNOWN)
                 .VertexShader(g_VS)
                 .PixelShader(g_PS)
                 .RootSignature(g_RootSignature);

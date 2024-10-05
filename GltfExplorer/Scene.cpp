@@ -255,7 +255,7 @@ SScene LoadSceneFromGlb(const char* glbPath)
     return processor.Process();
 }
 
-tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const tpr::GraphicsPipelineTargetDesc& targetDesc, tpr::RenderFormat depthFormat)
+tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const tpr::GraphicsPipelineTargetDesc& targetDesc)
 {
     static tpr::GraphicsPipelineStatePtr Permutations[(uint32_t)EMaterialDomain::MD_COUNT][2] = {};
 
@@ -283,7 +283,7 @@ tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const 
 
     tpr::GraphicsPipelineStateDesc psoDesc = {};
     psoDesc.RasterizerDesc(tpr::PrimitiveTopologyType::TRIANGLE, tpr::FillMode::SOLID, cullMode)
-        .DepthDesc(true, tpr::ComparisionFunc::LESS_EQUAL, depthFormat)
+        .DepthDesc(true, tpr::ComparisionFunc::LESS_EQUAL)
         .TargetBlendDesc(targetDesc)
         .VertexShader(vertexShader)
         .PixelShader(pixelShader);

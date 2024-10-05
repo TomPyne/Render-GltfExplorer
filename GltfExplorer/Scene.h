@@ -115,4 +115,4 @@ struct SScene
 
 SScene LoadSceneFromGlb(const char* glbPath);
 
-tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const tpr::GraphicsPipelineTargetDesc& targetDesc, tpr::RenderFormat depthFormat);
+tpr::GraphicsPipelineState_t GetPSOForMaterial(const SMaterial& material, const tpr::GraphicsPipelineTargetDesc& targetDesc);
